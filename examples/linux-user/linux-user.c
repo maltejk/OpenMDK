@@ -277,7 +277,7 @@ _bus_flags(void)
 
 static int
 _create_cdk_device(uint32_t vendor_id, uint32_t device_id, uint32_t rev_id, 
-                   uint32_t base_addr)
+                   uint64_t base_addr)
 {
     cdk_dev_id_t id; 
     cdk_dev_vectors_t dv; 
@@ -306,7 +306,7 @@ _create_cdk_device(uint32_t vendor_id, uint32_t device_id, uint32_t rev_id,
      */
     rc = cdk_dev_create(&id, &dv, _bus_flags()); 
     if(rc < 0) {
-        fprintf(stderr, "cdk_dev_create: could not create device 0x%x:0x%x:0x%x @ 0x%x: %s (%d)\n", 
+        fprintf(stderr, "cdk_dev_create: could not create device 0x%x:0x%x:0x%x @ 0x%llx: %s (%d)\n",
                 vendor_id, device_id, rev_id, base_addr, 
                 CDK_ERRMSG(rc), rc); 
         exit(1); 
@@ -369,7 +369,7 @@ _dev_is_iproc(int unit)
 }
 
 static void
-_iproc_dev_init(uint32_t device_id, uint32_t revision_id, uint32_t base_addr)
+_iproc_dev_init(uint32_t device_id, uint32_t revision_id, uint64_t base_addr)
 {
     shbde_hal_t shared_bde, *shbde = &shared_bde;
     shbde_iproc_config_t iproc_config, *icfg = &iproc_config;
@@ -383,7 +383,11 @@ _iproc_dev_init(uint32_t device_id, uint32_t revision_id, uint32_t base_addr)
 
     shbde_iproc_config_init(icfg, device_id, revision_id);
 
-    shbde_iproc_paxb_init(shbde, iproc_regs, icfg);
+    /* Juniper SRX300: skipped. paxb_init writes PAXB_ENDIANESS, which
+     * persists across reset on the Octeon PCIe host controller and wedges
+     * the device. The chip runs with PIO endianess 0 (raw 32-bit access,
+     * byte-swapped in the HAL). */
+    /* shbde_iproc_paxb_init(shbde, iproc_regs, icfg); */
 }
 
 int     
@@ -414,17 +418,19 @@ main(int argc, char* argv[])
             uint32_t vendor_id; 
             uint32_t device_id;
             uint32_t revision_id;
-            uint32_t base_addr; 
-            uint32_t base_addr2;
+            /* Octeon III PCIe BARs on the SRX300 live above 4 GB
+             * (e.g. 0x11b0102000000), so the unit addresses are 64-bit. */
+            uint64_t base_addr;
+            uint64_t base_addr2;
             int base_addr2_valid = 0;
 
             if(argv[i+1]) {
-                if(sscanf(argv[i+1], "0x%x:0x%x:0x%x@0x%x:0x%x",
+                if(sscanf(argv[i+1], "0x%x:0x%x:0x%x@0x%llx:0x%llx",
                           &vendor_id, &device_id, &revision_id, &base_addr, &base_addr2) ==
                    5) {
                     base_addr2_valid = 1;
                 } else {
-                    if(sscanf(argv[i+1], "0x%x:0x%x:0x%x@0x%x",
+                    if(sscanf(argv[i+1], "0x%x:0x%x:0x%x@0x%llx",
                               &vendor_id, &device_id, &revision_id, &base_addr) != 4) {
                         fprintf(stderr, "error: malformed option: %s %s\n",
                                 argv[i], argv[i+1]);

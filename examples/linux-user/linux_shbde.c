@@ -56,13 +56,17 @@ linux_pcic32_write(void *pci_dev, unsigned int addr, unsigned int data)
 static unsigned int
 linux_io32_read(void *addr)
 {
-    return *((volatile unsigned int *)addr);
+    /* Juniper SRX300 (Octeon III, little-endian): the PAXB (BAR0) MMIO
+     * window maps the CMIC registers in big-endian byte order, so 32-bit
+     * accesses must be byte-swapped in software. See linux-user.c. */
+    return __builtin_bswap32(*((volatile unsigned int *)addr));
 }
 
 static void
 linux_io32_write(void *addr, unsigned int data)
 {
-    *((volatile unsigned int *)addr) = data;
+    /* see linux_io32_read(): software byte swap on the PAXB window */
+    *((volatile unsigned int *)addr) = __builtin_bswap32(data);
 }
 
 static void
