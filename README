@@ -21,3 +21,28 @@ description of the MDK components and build instructions for the
 sample applications.
 
 =====================================================================
+
+---
+
+## Juniper SRX300 support (branch juniper-srx300-support)
+
+Adaptations for the BCM53343 switch on the Juniper SRX300 (OCTEON III
+CN7020, little-endian mips64el host):
+
+- `examples/linux-user/linux_shbde.c`: 32-bit MMIO reads/writes are
+  byte-swapped in software; the PAXB window (BAR0) maps the CMIC
+  registers big-endian.
+- `examples/linux-user/linux-user.c`: `shbde_iproc_paxb_init()` is
+  skipped (its PAXB_ENDIANESS write persists across reset and wedges
+  the device); unit base addresses widened to 64-bit (`%llx` formats)
+  since the OCTEON PCIe BARs live above 4 GB.
+- `cdk/shared/cdk_dev_read32.c`, `cdk/shared/cdk_dev_write32.c`: the
+  BAR2 CMIC window decodes 32-bit words word-swapped and XOR-4-offset
+  (logical register R at offset R ^ 4), so the dev accessors apply
+  `(addr/4) ^ 1` plus a byte swap.
+
+Build: `make -C examples/linux-user` with
+`CFLAGS="-DSYS_BE_PIO=1 -DSYS_BE_PACKET=0 -DSYS_BE_OTHER=0
+-DCDK_CONFIG_INCLUDE_BCM53343_A0=1"`, unit line
+`--unit 0x14e4:0x8343:0x01@<BAR2-base>:<BAR0-base>` (BAR2 = linear
+CMIC window first, BAR0 = PAXB second).
