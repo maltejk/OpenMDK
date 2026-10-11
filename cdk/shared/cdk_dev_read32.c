@@ -34,7 +34,11 @@ cdk_dev_read32(int unit, uint32_t addr, uint32_t *pval)
     CDK_ASSERT(CDK_UNIT_VALID(unit)); 
 
     if (CDK_DEV_BASE_ADDR(unit)) {
-	*pval = CDK_DEV_BASE_ADDR(unit)[addr/4]; 
+	/* Juniper SRX300 (Octeon III, little-endian): the BAR2 CMIC window
+	 * decodes 32-bit words word-swapped and XOR-4-offset (logical
+	 * register R is at offset R ^ 4). Verified against the BCM53343
+	 * SCHAN READ_REGISTER path. */
+	*pval = __builtin_bswap32(CDK_DEV_BASE_ADDR(unit)[(addr/4) ^ 1]);
     } else if (CDK_DEV_VECT(unit)->read32) {
 	rv = CDK_DEV_VECT(unit)->read32(CDK_DEV_DVC(unit), addr, pval); 
     } else {    

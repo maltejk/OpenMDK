@@ -37,7 +37,8 @@ cdk_dev_write32(int unit, uint32_t addr, uint32_t val)
                    unit, addr, val)); 
 
     if (CDK_DEV_BASE_ADDR(unit)) {
-	CDK_DEV_BASE_ADDR(unit)[addr/4] = val; 
+	/* see cdk_dev_read32.c: XOR-4 swizzle + byte swap on the SRX300 */
+	CDK_DEV_BASE_ADDR(unit)[(addr/4) ^ 1] = __builtin_bswap32(val);
     } else if (CDK_DEV_VECT(unit)->write32) {
 	rv = CDK_DEV_VECT(unit)->write32(CDK_DEV_DVC(unit), addr, val); 
     } else {    
